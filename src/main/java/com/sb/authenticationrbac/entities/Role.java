@@ -1,6 +1,6 @@
 package com.sb.authenticationrbac.entities;
 
-import com.sb.authenticationrbac.role.dto.RoleConfiguration;
+import com.sb.authenticationrbac.entities.RoleConfiguration; // Corrected import
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -14,6 +14,7 @@ public class Role {
     private String id;
     private String name;
     private String description;
+    private String parentRoleName; // Optional: for role hierarchy
     private List<String> permissions; // Permission IDs
     private RoleConfiguration configuration; // Dynamic role configuration
     private LocalDateTime createdAt;
