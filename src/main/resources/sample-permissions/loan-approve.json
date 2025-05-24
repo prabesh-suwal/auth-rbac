@@ -1,0 +1,72 @@
+{
+  "_id": "loan_approve_001",
+  "name": "LOAN_APPROVE",
+  "resource": "LOAN",
+  "action": "APPROVE",
+  "description": "Permission to approve loans with various conditions",
+  "config": {
+    "branchAccess": {
+      "type": "OWN_BRANCH",
+      "branchFieldPath": "branch.id",
+      "includeSubBranches": false
+    },
+    "amountLimit": {
+      "enabled": true,
+      "limitType": "ROLE_BASED",
+      "defaultLimit": 100000.0,
+      "amountFieldPath": "amount",
+      "roleLimits": {
+        "LOAN_OFFICER": 100000.0,
+        "SENIOR_OFFICER": 500000.0,
+        "MANAGER": 1000000.0,
+        "SENIOR_MANAGER": 5000000.0
+      }
+    },
+    "timeAccess": {
+      "enabled": true,
+      "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+      "allowedTimeWindows": [
+        {
+          "startTime": "09:00",
+          "endTime": "17:00"
+        }
+      ],
+      "timezone": "Asia/Kolkata"
+    },
+    "resourceAccess": {
+      "accessType": "CONDITIONAL",
+      "accessConditions": [
+        "#resource.status == 'PENDING'",
+        "#resource.amount > 0",
+        "#resource.applicant != null"
+      ]
+    },
+    "conditions": [
+      "#user.branch.id == #resource.branch.id",
+      "#resource.riskScore <= 70 or #user.roles.?[name=='SENIOR_MANAGER'].size() > 0"
+    ],
+    "validationRules": [
+      {
+        "name": "positive_amount",
+        "condition": "#resource.amount > 0",
+        "errorMessage": "Loan amount must be positive",
+        "priority": 1
+      },
+      {
+        "name": "valid_status",
+        "condition": "#resource.status == 'PENDING'",
+        "errorMessage": "Only pending loans can be approved",
+        "priority": 2
+      },
+      {
+        "name": "risk_assessment",
+        "condition": "#resource.riskScore <= 80 or #context.override == true",
+        "errorMessage": "High risk loans require override approval",
+        "priority": 3
+      }
+    ]
+  },
+  "active": true,
+  "createdAt": "2024-01-01T10:00:00Z",
+  "updatedAt": "2024-01-15T14:30:00Z"
+} 

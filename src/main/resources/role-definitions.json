@@ -1,0 +1,284 @@
+{
+  "roles": [
+    {
+      "name": "RELATIONSHIP_MANAGER",
+      "description": "Manages client relationships and initiates loan proposals",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_CREATE",
+        "LOAN_UPDATE",
+        "CUSTOMER_VIEW",
+        "CUSTOMER_CREATE",
+        "CUSTOMER_UPDATE",
+        "REPORT_BASIC_VIEW"
+      ],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_PROPOSE": 5000000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "OWN_BRANCH_ONLY",
+          "allowCrossBranchView": false
+        },
+        "approvalChain": {
+          "requiresBranchManagerApproval": {
+            "enabled": true,
+            "amountThreshold": 2000000.0
+          },
+          "requiresCreditCommitteeApproval": {
+            "enabled": true,
+            "amountThreshold": 5000000.0
+          }
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "LOAN_OFFICER",
+      "description": "Processes and evaluates loan applications",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_CREATE",
+        "LOAN_UPDATE",
+        "LOAN_APPROVE",
+        "CUSTOMER_VIEW",
+        "CUSTOMER_CREATE",
+        "REPORT_BASIC_VIEW"
+      ],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_APPROVE": 1000000.0,
+          "LOAN_DISBURSE": 1000000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "OWN_BRANCH_ONLY",
+          "allowCrossBranchView": false
+        },
+        "approvalChain": {
+          "requiresBranchManagerApproval": {
+            "enabled": true,
+            "amountThreshold": 500000.0
+          }
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "BRANCH_MANAGER",
+      "description": "Manages branch operations and approves loans within limits",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_CREATE",
+        "LOAN_UPDATE",
+        "LOAN_APPROVE",
+        "LOAN_REJECT",
+        "CUSTOMER_VIEW",
+        "CUSTOMER_CREATE",
+        "CUSTOMER_UPDATE",
+        "REPORT_ADVANCED_VIEW",
+        "BRANCH_REPORT_VIEW",
+        "USER_VIEW",
+        "USER_UPDATE"
+      ],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_APPROVE": 10000000.0,
+          "LOAN_DISBURSE": 10000000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "OWN_BRANCH_AND_SUBORDINATES",
+          "allowCrossBranchView": true
+        },
+        "approvalChain": {
+          "requiresCreditCommitteeApproval": {
+            "enabled": true,
+            "amountThreshold": 5000000.0
+          }
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "CREDIT_COMMITTEE_MEMBER",
+      "description": "Reviews and approves high-value loans",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_APPROVE",
+        "LOAN_REJECT",
+        "CUSTOMER_VIEW",
+        "REPORT_ADVANCED_VIEW",
+        "CREDIT_COMMITTEE_VOTE"
+      ],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_APPROVE": 50000000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES",
+          "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "CREDIT_ADMIN_OFFICER",
+      "description": "Manages loan documentation and disbursement",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_UPDATE",
+        "LOAN_DOCUMENT_VERIFY",
+        "LOAN_DISBURSE",
+        "CUSTOMER_VIEW",
+        "DOCUMENT_MANAGEMENT"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "OWN_BRANCH_ONLY",
+          "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "INTERNAL_AUDITOR",
+      "description": "Conducts internal audits of loan processes",
+      "permissions": [
+        "LOAN_VIEW",
+        "CUSTOMER_VIEW",
+        "REPORT_ADVANCED_VIEW",
+        "AUDIT_LOG_VIEW",
+        "USER_ACTIVITY_VIEW"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES",
+          "allowCrossBranchView": true
+        },
+        "auditFeatures": {
+          "canViewDeletedRecords": true,
+          "canViewAuditHistory": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "CHIEF_CREDIT_OFFICER",
+      "description": "Oversees credit policy and high-value approvals",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_APPROVE",
+        "LOAN_REJECT",
+        "LOAN_POLICY_MANAGE",
+        "CUSTOMER_VIEW",
+        "REPORT_ADVANCED_VIEW",
+        "CREDIT_POLICY_MANAGE"
+      ],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_APPROVE": 100000000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES",
+          "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "RISK_MANAGEMENT_OFFICER",
+      "description": "Assesses and monitors credit risk",
+      "permissions": [
+        "LOAN_VIEW",
+        "RISK_ASSESSMENT_CREATE",
+        "RISK_ASSESSMENT_UPDATE",
+        "CUSTOMER_VIEW",
+        "REPORT_ADVANCED_VIEW",
+        "RISK_REPORT_VIEW"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES",
+          "allowCrossBranchView": true
+        },
+        "riskAssessmentFeatures": {
+          "canOverrideRiskScores": false,
+          "canModifyRiskParameters": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "CREDIT_ANALYST",
+      "description": "Analyzes loan applications and prepares credit reports",
+      "permissions": [
+        "LOAN_VIEW",
+        "LOAN_UPDATE",
+        "CREDIT_ANALYSIS_CREATE",
+        "CREDIT_ANALYSIS_UPDATE",
+        "CUSTOMER_VIEW",
+        "REPORT_BASIC_VIEW"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+        },
+        "branchRestrictions": {
+          "type": "OWN_BRANCH_ONLY",
+          "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    }
+  ]
+} 
