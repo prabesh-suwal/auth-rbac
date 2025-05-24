@@ -13,6 +13,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import com.sb.authenticationrbac.security.CustomUserDetails;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -89,14 +90,14 @@ public class DynamicPermissionCheckAspect {
     private PermissionResult evaluatePermission(ProceedingJoinPoint joinPoint, CheckPermission checkPermission) {
         try {
             // Get current user
-//            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-//            if (auth == null || !auth.isAuthenticated()) {
-//                return PermissionResult.denied("User not authenticated");
-//            }
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() instanceof String && auth.getPrincipal().equals("anonymousUser")) {
+                return PermissionResult.denied("User not authenticated or anonymous");
+            }
 
-//            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-//            String userId = userDetails.getUserId();
-            String userId = "682f57330b508dac57282092";
+            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+            String userId = userDetails.getUserId();
+            // String userId = "682f57330b508dac57282092"; // Removed hardcoded userId
 
             // Get method parameters
             Map<String, Object> methodParams = getMethodParameters(joinPoint);

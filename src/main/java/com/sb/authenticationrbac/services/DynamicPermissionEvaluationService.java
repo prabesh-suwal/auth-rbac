@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -248,7 +249,8 @@ public class DynamicPermissionEvaluationService {
             return PermissionResult.allowed("No time restrictions");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        ZoneId nepalTimeZone = ZoneId.of("Asia/Kathmandu");
+        LocalDateTime now = LocalDateTime.now(nepalTimeZone);
         String currentDay = now.getDayOfWeek().name();
         LocalTime currentTime = now.toLocalTime();
 
@@ -399,7 +401,8 @@ public class DynamicPermissionEvaluationService {
             evalContext.setVariable("resource", resource);
             evalContext.setVariable("context", context);
             evalContext.setVariable("userBranch", getBranch(user.getBranchId()));
-            evalContext.setVariable("now", LocalDateTime.now());
+            ZoneId nepalTimeZone = ZoneId.of("Asia/Kathmandu");
+            evalContext.setVariable("now", LocalDateTime.now(nepalTimeZone));
 
             Expression expression = parser.parseExpression(condition);
             Boolean result = expression.getValue(evalContext, Boolean.class);
@@ -458,7 +461,8 @@ public class DynamicPermissionEvaluationService {
         evaluation.setAllowed(allowed);
         evaluation.setReason(reason);
         evaluation.setContext(context);
-        evaluation.setEvaluatedAt(LocalDateTime.now());
+        ZoneId nepalTimeZone = ZoneId.of("Asia/Kathmandu");
+        evaluation.setEvaluatedAt(LocalDateTime.now(nepalTimeZone));
 
         mongoTemplate.save(evaluation);
     }

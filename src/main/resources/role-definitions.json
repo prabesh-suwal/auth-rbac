@@ -3,6 +3,7 @@
     {
       "name": "RELATIONSHIP_MANAGER",
       "description": "Manages client relationships and initiates loan proposals",
+      "parentRoleName": "BRANCH_MANAGER",
       "permissions": [
         "LOAN_VIEW",
         "LOAN_CREATE",
@@ -18,8 +19,8 @@
         },
         "workingHours": {
           "enabled": true,
-          "startTime": "09:00",
-          "endTime": "17:00",
+          "startTime": "08:00",
+          "endTime": "18:00",
           "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
         },
         "branchRestrictions": {
@@ -42,6 +43,7 @@
     {
       "name": "LOAN_OFFICER",
       "description": "Processes and evaluates loan applications",
+      "parentRoleName": "RELATIONSHIP_MANAGER",
       "permissions": [
         "LOAN_VIEW",
         "LOAN_CREATE",
@@ -78,6 +80,7 @@
     {
       "name": "BRANCH_MANAGER",
       "description": "Manages branch operations and approves loans within limits",
+      "parentRoleName": "CREDIT_COMMITTEE_MEMBER",
       "permissions": [
         "LOAN_VIEW",
         "LOAN_CREATE",
@@ -119,6 +122,7 @@
     {
       "name": "CREDIT_COMMITTEE_MEMBER",
       "description": "Reviews and approves high-value loans",
+      "parentRoleName": "CHIEF_CREDIT_OFFICER",
       "permissions": [
         "LOAN_VIEW",
         "LOAN_APPROVE",
@@ -276,6 +280,47 @@
         "branchRestrictions": {
           "type": "OWN_BRANCH_ONLY",
           "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "IT_SUPPORT",
+      "description": "Provides IT support and has extended system access.",
+      "permissions": [
+        "SYSTEM_MONITORING",
+        "USER_ACCOUNT_ASSIST"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "00:00",
+          "endTime": "23:59",
+          "workingDays": ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES",
+          "allowCrossBranchView": true
+        }
+      },
+      "active": true
+    },
+    {
+      "name": "SYSTEM_MAINTENANCE",
+      "description": "Performs system maintenance tasks, often during specific off-peak windows.",
+      "permissions": [
+        "DATABASE_MAINTENANCE",
+        "SYSTEM_CONFIG_UPDATE"
+      ],
+      "configuration": {
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "13:00",
+          "workingDays": ["SATURDAY"]
+        },
+        "branchRestrictions": {
+          "type": "ALL_BRANCHES"
         }
       },
       "active": true
