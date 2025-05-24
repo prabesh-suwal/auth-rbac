@@ -50,7 +50,7 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             },
             "validation_rules": [
               {
@@ -114,7 +114,7 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             }
           }
         },
@@ -238,7 +238,7 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             },
             "validation_rules": [
               {
@@ -321,7 +321,7 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             },
             "resource_access": {
               "access_type": "CONDITIONAL",
@@ -403,7 +403,7 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             },
             "validation_rules": [
               {
@@ -452,9 +452,72 @@
                   "end_time": "17:00"
                 }
               ],
-              "timezone": "Asia/Kolkata"
+              "timezone": "Asia/Kathmandu"
             }
           }
+        }
+      ]
+    },
+    "technical_operations": {
+      "description": "Permissions for technical and system operations",
+      "permissions": [
+        {
+          "name": "SYSTEM_MONITORING",
+          "resource": "SYSTEM",
+          "operation": "MONITOR",
+          "description": "Permission to monitor system health and performance.",
+          "api": { "endpoint": "/api/system/monitoring", "method": "GET" },
+          "config": {
+            "branch_access": { "type": "ALL_BRANCHES" },
+            "time_access": { "enabled": false }
+          },
+          "active": true
+        },
+        {
+          "name": "USER_ACCOUNT_ASSIST",
+          "resource": "USER",
+          "operation": "ASSIST",
+          "description": "Permission to assist with user account issues (e.g., password resets, troubleshooting).",
+          "api": { "endpoint": "/api/users/{id}/assist", "method": "POST" },
+          "config": {
+            "branch_access": { "type": "ALL_BRANCHES" },
+            "time_access": { "enabled": false }
+          },
+          "active": true
+        },
+        {
+          "name": "DATABASE_MAINTENANCE",
+          "resource": "DATABASE",
+          "operation": "MAINTAIN",
+          "description": "Permission to perform database maintenance tasks.",
+          "api": { "endpoint": "/api/system/db/maintenance", "method": "POST" },
+          "config": {
+            "branch_access": { "type": "ALL_BRANCHES" },
+            "time_access": { 
+              "enabled": true,
+              "allowed_days": ["SATURDAY"],
+              "allowed_time_windows": [{"start_time": "00:00", "end_time": "23:59"}],
+              "timezone": "Asia/Kathmandu"
+            }
+          },
+          "active": true
+        },
+        {
+          "name": "SYSTEM_CONFIG_UPDATE",
+          "resource": "SYSTEM_CONFIG",
+          "operation": "UPDATE",
+          "description": "Permission to update system configurations.",
+          "api": { "endpoint": "/api/system/config", "method": "PUT" },
+          "config": {
+            "branch_access": { "type": "ALL_BRANCHES" },
+            "time_access": {
+               "enabled": true,
+               "allowed_days": ["SATURDAY"],
+               "allowed_time_windows": [{"start_time": "00:00", "end_time": "23:59"}],
+              "timezone": "Asia/Kathmandu"
+            }
+          },
+          "active": true
         }
       ]
     }
