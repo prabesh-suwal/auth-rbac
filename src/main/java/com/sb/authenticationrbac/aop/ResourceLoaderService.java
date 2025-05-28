@@ -1,50 +1,60 @@
 package com.sb.authenticationrbac.aop;
 
-import com.sb.authenticationrbac.entities.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-
-// Service for loading resources dynamically
 @Service
 public class ResourceLoaderService {
-    
+
     private final MongoTemplate mongoTemplate;
-    private final Map<String, Class<?>> resourceTypeMap;
-    
+
     public ResourceLoaderService(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
-        this.resourceTypeMap = initializeResourceTypeMap();
     }
-    
-    private Map<String, Class<?>> initializeResourceTypeMap() {
-        Map<String, Class<?>> typeMap = new HashMap<>();
-//        typeMap.put("LOAN", Loan.class);
-        typeMap.put("USER", User.class);
-        typeMap.put("BRANCH", Branch.class);
-        typeMap.put("ROLE", Role.class);
-        typeMap.put("PERMISSION", Permission.class);
-        // Add other resource types as needed
-        return typeMap;
-    }
-    
+
     public Object loadResource(String resourceType, Object resourceId) {
-        Class<?> resourceClass = resourceTypeMap.get(resourceType.toUpperCase());
-        if (resourceClass == null) {
+        if (resourceType == null || resourceId == null) {
             return null;
         }
-        
+
         try {
-            return mongoTemplate.findById(resourceId, resourceClass);
+            // Convert resource type to entity class
+            Class<?> entityClass = getEntityClass(resourceType);
+            if (entityClass == null) {
+                return null;
+            }
+
+            // Load the resource from MongoDB
+            return mongoTemplate.findById(resourceId, entityClass);
         } catch (Exception e) {
             // Log error and return null
             return null;
         }
     }
-    
-    public void registerResourceType(String typeName, Class<?> resourceClass) {
-        resourceTypeMap.put(typeName.toUpperCase(), resourceClass);
+
+    private Class<?> getEntityClass(String resourceType) {
+        try {
+            // Map resource types to entity classes
+            switch (resourceType.toUpperCase()) {
+                case "USER":
+                    return Class.forName("com.sb.authenticationrbac.entities.User");
+                case "ROLE":
+                    return Class.forName("com.sb.authenticationrbac.entities.Role");
+                case "PERMISSION":
+                    return Class.forName("com.sb.authenticationrbac.entities.Permission");
+                case "BRANCH":
+                    return Class.forName("com.sb.authenticationrbac.entities.Branch");
+                case "LOAN":
+                    return Class.forName("com.sb.authenticationrbac.entities.Loan");
+                default:
+                    // Try to construct the class name dynamically
+                    String className = "com.sb.authenticationrbac.entities." + 
+                                     resourceType.substring(0, 1).toUpperCase() + 
+                                     resourceType.substring(1).toLowerCase();
+                    return Class.forName(className);
+            }
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
     }
 }

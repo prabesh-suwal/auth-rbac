@@ -1,364 +1,622 @@
-# Nepalese Banking System - Role-Based Access Control (RBAC)
+# Spring Boot RBAC Authentication System
 
-## Project Overview
-This project implements a sophisticated Role-Based Access Control (RBAC) system specifically designed for Nepalese banking institutions. The system provides a secure, flexible, and compliant way to manage user permissions and access controls within the banking environment.
+A comprehensive, enterprise-grade Role-Based Access Control (RBAC) system built with Spring Boot and MongoDB. This system provides dynamic, configuration-driven permission management with fine-grained access control, performance monitoring, and scalable architecture.
 
-## Business Context
-In the Nepalese banking sector, different roles require different levels of access and authorization. The system is designed to handle:
-- Loan processing workflows
-- Branch-specific operations
-- Credit management
-- Risk assessment
-- Audit requirements
-- Working hour restrictions (Nepal timezone)
+## 🚀 Features
 
-## Core Features
+### Core RBAC Features
+- **JWT-Based Authentication**: Secure token-based authentication with refresh tokens
+- **Dynamic Permission Evaluation**: Database-driven permission configuration without code changes
+- **Multi-Layer Access Control**: Role-based, branch-based, amount-based, time-based, and resource-specific permissions
+- **Hierarchical Branch Management**: Support for complex organizational structures
+- **Temporary Permissions**: Time-limited access grants with custom conditions
+- **User-Specific Overrides**: Individual permission customizations
+- **SpEL Expression Support**: Complex business logic through Spring Expression Language
 
-### 1. Role Management
-- **Hierarchical Roles**: Nine predefined roles with specific responsibilities:
-  - Relationship Manager (loan proposals up to 5M NPR)
-  - Loan Officer (processing up to 1M NPR)
-  - Branch Manager (approvals up to 10M NPR)
-  - Credit Committee Member (approvals up to 50M NPR)
-  - Credit Administration Officer (documentation and disbursement)
-  - Internal Auditor (audit access)
-  - Chief Credit Officer (approvals up to 100M NPR)
-  - Risk Management Officer (risk assessment)
-  - Credit Analyst (credit analysis)
+### Security Features
+- **JWT Token Management**: Access and refresh token handling
+- **Password Encryption**: BCrypt password hashing
+- **CORS Configuration**: Cross-origin resource sharing support
+- **Security Context Integration**: Spring Security integration
+- **Authentication Entry Points**: Custom error handling for unauthorized access
 
-### 2. Permission Controls
-- **Granular Permissions**: Fine-grained control over system actions
-- **Amount-based Limits**: Transaction and approval limits based on role
-- **Branch Restrictions**: Three levels of branch access:
-  - OWN_BRANCH_ONLY
-  - OWN_BRANCH_AND_SUBORDINATES
-  - ALL_BRANCHES
+### Performance & Scalability
+- **Comprehensive Caching**: Multi-level caching for optimal performance
+- **Performance Monitoring**: Real-time metrics and analytics
+- **Audit Trail**: Complete permission evaluation logging
+- **Horizontal Scaling**: Stateless design for cloud deployment
 
-### 3. Time-Based Access
-- **Working Hours**: Sunday-Friday, 9 AM-5 PM (Nepal time)
-- **Flexible Configuration**: Customizable per role
-- **Holiday Management**: Support for Nepalese banking holidays
+### Enterprise Features
+- **JSON Configuration**: Permission definitions through JSON files
+- **Validation & Integrity**: Branch hierarchy validation and consistency checks
+- **Monitoring Dashboard**: Performance metrics and system health endpoints
+- **Error Handling**: Graceful degradation and detailed error reporting
 
-### 4. Validation Framework
-The system implements a robust validation framework using:
-- Template Method Pattern for structured validation
-- Abstract Factory Pattern for validator creation
-- Comprehensive validation rules for:
-  - Role names and descriptions
-  - Permission assignments
-  - Working hour configurations
-  - Branch access restrictions
-  - Amount limits
+## 🏗️ Architecture
 
-## Technical Implementation
+### Core Components
 
-### Architecture
-- **Spring Boot Backend**: Java-based REST API
-- **MongoDB Database**: Document storage for flexible schema
-- **Validation Framework**: Custom implementation using design patterns
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Authentication Flow                      │
+├─────────────────────────────────────────────────────────────┤
+│ Login → JWT Token → Security Context → Permission Check    │
+│                                                             │
+│ 1. User Authentication   4. Resource Loading               │
+│ 2. JWT Token Generation  5. Permission Evaluation          │
+│ 3. Security Context      6. Access Decision                │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Key Components
+### Permission Evaluation Flow
 
-#### 1. Data Transfer Objects (DTOs)
-- `RoleDefinition`: Core role information
-- `RoleConfiguration`: Role-specific settings
-  - Working hours
-  - Branch restrictions
-  - Amount limits
-  - Audit features
-  - Risk assessment capabilities
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Permission Evaluation Flow               │
+├─────────────────────────────────────────────────────────────┤
+│ @CheckPermission → Aspect → Service → Multi-Layer Checks   │
+│                                                             │
+│ 1. Role-Based Access     5. Custom Conditions              │
+│ 2. Branch Access         6. Validation Rules               │
+│ 3. Amount Limits         7. User Overrides                 │
+│ 4. Time Restrictions     8. Temporary Permissions          │
+└─────────────────────────────────────────────────────────────┘
+```
 
-#### 2. Validation Framework
+### Key Services
+- **AuthController**: Authentication endpoints (login, register, refresh)
+- **DynamicPermissionEvaluationService**: Core permission evaluation engine
+- **BranchHierarchyService**: Organizational structure management
+- **PermissionPerformanceMonitoringService**: Performance tracking and analytics
+- **CustomUserDetailsService**: User authentication and authorization
+
+## 📋 Prerequisites
+
+- Java 17+
+- MongoDB 4.4+
+- Spring Boot 3.x
+- Maven 3.6+
+
+## 🛠️ Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd authentication-rbac
+```
+
+2. **Configure MongoDB**
+```yaml
+# application.properties
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/rbac_db
+```
+
+3. **Configure JWT**
+```yaml
+# application.properties
+app:
+  jwt:
+    secret: mySecretKey123456789012345678901234567890
+    expiration: 86400 # 24 hours
+    refresh-expiration: 604800 # 7 days
+```
+
+4. **Build and run**
+```bash
+mvn clean install
+mvn spring-boot:run
+```
+
+## 🔐 Authentication
+
+### Default Users
+The system creates default users on startup:
+
+| Username | Password | Role | Description |
+|----------|----------|------|-------------|
+| admin | admin123 | ADMIN | System Administrator |
+| manager | manager123 | MANAGER | Branch Manager |
+| loanofficer | loan123 | LOAN_OFFICER | Loan Officer |
+| usermanager | usermgr123 | USER_MANAGER | User Manager |
+
+### Authentication Endpoints
+
+#### Login
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+Response:
+```json
+{
+  "token": "eyJhbGciOiJIUzUxMiJ9...",
+  "refreshToken": "eyJhbGciOiJIUzUxMiJ9...",
+  "type": "Bearer",
+  "id": "user-admin",
+  "username": "admin",
+  "email": "admin@company.com",
+  "branchId": "branch-head-office",
+  "roles": ["ROLE_ADMIN", "ADMIN", "USER_CREATE", "SYSTEM_ADMIN", ...]
+}
+```
+
+#### Register
+```bash
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "email": "newuser@company.com",
+  "password": "password123",
+  "branchId": "branch-001",
+  "roleIds": ["role-loan-officer"]
+}
+```
+
+#### Refresh Token
+```bash
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzUxMiJ9..."
+}
+```
+
+#### Get Current User
+```bash
+GET /api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+```
+
+### Using JWT Tokens
+
+Include the JWT token in the Authorization header:
+```bash
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+```
+
+## 🧪 Testing Authentication
+
+### Test Endpoints
+
+The system provides test endpoints to verify authentication and authorization:
+
+```bash
+# Public endpoint (no authentication required)
+GET /api/test/public
+
+# Authenticated endpoint (requires valid JWT)
+GET /api/test/authenticated
+Authorization: Bearer <token>
+
+# Admin role required
+GET /api/test/admin
+Authorization: Bearer <admin-token>
+
+# Specific permission required
+GET /api/test/user-create
+Authorization: Bearer <token-with-user-create-permission>
+
+# Multiple permissions (OR logic)
+GET /api/test/multiple-permissions
+Authorization: Bearer <token>
+```
+
+### Example Test Flow
+
+1. **Login as admin**:
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
+
+2. **Test authenticated endpoint**:
+```bash
+curl -X GET http://localhost:8080/api/test/authenticated \
+  -H "Authorization: Bearer <token-from-login>"
+```
+
+3. **Test permission-based endpoint**:
+```bash
+curl -X GET http://localhost:8080/api/test/user-create \
+  -H "Authorization: Bearer <token-from-login>"
+```
+
+## 🔧 Configuration
+
+### Permission Definitions
+Create permission definitions in `src/main/resources/permission-definitions.json`:
+
+```json
+{
+  "apiGroups": {
+    "loanManagement": {
+      "description": "Loan Management APIs",
+      "permissions": [
+        {
+          "name": "LOAN_APPROVE",
+          "resource": "LOAN",
+          "operation": "APPROVE",
+          "description": "Permission to approve loans with various conditions",
+          "config": {
+            "branchAccess": {
+              "type": "OWN_BRANCH",
+              "includeSubBranches": false
+            },
+            "amountLimit": {
+              "enabled": true,
+              "limitType": "ROLE_BASED",
+              "roleLimits": {
+                "LOAN_OFFICER": 100000.0,
+                "MANAGER": 1000000.0
+              }
+            },
+            "timeAccess": {
+              "enabled": true,
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
+                {"startTime": "09:00", "endTime": "17:00"}
+              ]
+            },
+            "conditions": [
+              "#resource.status == 'PENDING'",
+              "#resource.amount > 0"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Role Definitions
+Define roles in `src/main/resources/role-definitions.json`:
+
+```json
+{
+  "roles": [
+    {
+      "name": "LOAN_OFFICER",
+      "description": "Basic loan processing officer",
+      "permissions": ["LOAN_VIEW", "LOAN_CREATE", "LOAN_UPDATE"],
+      "configuration": {
+        "defaultAmountLimits": {
+          "LOAN_APPROVE": 100000.0
+        },
+        "workingHours": {
+          "enabled": true,
+          "startTime": "09:00",
+          "endTime": "17:00"
+        }
+      }
+    }
+  ]
+}
+```
+
+## 💻 Usage
+
+### Basic Permission Check
 ```java
-public abstract class AbstractValidator<T> {
-    public final void validate(T request) {
-        preValidate(request);
-        doValidate(request);
-        postValidate(request);
+@RestController
+public class LoanController {
+    
+    @PostMapping("/loans/{id}/approve")
+    @CheckPermission(
+        value = "LOAN_APPROVE",
+        resource = "LOAN",
+        resourceIdParam = "id",
+        operation = "APPROVE",
+        message = "Loan approval not authorized"
+    )
+    public ResponseEntity<Loan> approveLoan(@PathVariable String id) {
+        // Your business logic here
+        return ResponseEntity.ok(loanService.approve(id));
     }
 }
 ```
 
-#### 3. Role Validator Implementation
-- Comprehensive validation for:
-  - Role naming conventions (uppercase with underscores)
-  - Description requirements (10-200 characters)
-  - Permission existence validation
-  - Time format validation (HH:mm)
-  - Working days validation
-  - Branch restriction types
-  - Amount limit validation
-
-## Current Progress
-
-### Completed Features
-1. **Core Framework Setup**
-   - Spring Boot application structure
-   - MongoDB integration
-   - Basic security configuration
-
-2. **Role Management**
-   - Role definition structure
-   - Permission management
-   - Configuration templates
-
-3. **Validation Framework**
-   - Abstract validator implementation
-   - Role creation validator
-   - Custom validation exception handling
-
-### In Progress
-1. **API Development**
-   - Role creation endpoints
-   - Permission management endpoints
-   - Role assignment endpoints
-
-2. **Additional Features**
-   - Holiday calendar integration
-   - Audit logging
-   - Branch hierarchy management
-
-## Next Steps
-
-### Planned Features
-1. **Enhanced Security**
-   - JWT authentication
-   - Session management
-   - Activity logging
-
-2. **Business Logic**
-   - Approval workflows
-   - Transaction processing
-   - Report generation
-
-3. **Integration**
-   - Core banking system integration
-   - Audit system integration
-   - Compliance reporting
-
-## Technical Requirements
-
-### Prerequisites
-- Java 17
-- Spring Boot 3.4.6
-- MongoDB
-- Maven
-
-### Dependencies
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-mongodb</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-validation</artifactId>
-    </dependency>
-    <!-- Additional dependencies -->
-</dependencies>
+### Multiple Permission Checks
+```java
+@PostMapping("/loans/{id}/emergency-approve")
+@CheckPermissions(
+    value = {
+        @CheckPermission(value = "LOAN_APPROVE", operation = "APPROVE"),
+        @CheckPermission(value = "EMERGENCY_OVERRIDE", operation = "OVERRIDE")
+    },
+    logic = "OR",
+    message = "Emergency approval requires special permissions"
+)
+public ResponseEntity<Loan> emergencyApprove(@PathVariable String id) {
+    return ResponseEntity.ok(loanService.emergencyApprove(id));
+}
 ```
 
-## Best Practices Implemented
-1. **SOLID Principles**
-   - Single Responsibility Principle in validators
-   - Open/Closed Principle in validation framework
-   - Interface Segregation in role definitions
-   - Dependency Inversion in service layer
-
-2. **Design Patterns**
-   - Template Method Pattern for validation
-   - Factory Pattern for validator creation
-   - Repository Pattern for data access
-   - Builder Pattern for complex objects
-
-3. **Security Best Practices**
-   - Input validation
-   - Role-based access control
-   - Secure password handling
-   - Audit logging
-
-## Contributing
-Guidelines for contributing to the project, including:
-- Code style
-- Pull request process
-- Testing requirements
-- Documentation standards
-
-## License
-[Specify License]
-
-## Complex Role and Permission Scenarios
-
-### 1. Loan Processing Workflow
-#### Scenario: Corporate Loan Application (Above 50M NPR)
-```mermaid
-graph TD
-    A[RM: Initial Proposal] --> B[Credit Analyst: Risk Assessment]
-    B --> C[Risk Management Officer: Risk Review]
-    C --> D[Branch Manager: Initial Approval]
-    D --> E[Credit Committee: Review]
-    E --> F[Chief Credit Officer: Final Approval]
-    F --> G[Credit Admin: Documentation]
-    G --> H[Internal Auditor: Compliance Check]
+### User Creation with Complex Permissions
+```java
+@PostMapping("/api/v1/users")
+@CheckPermission(value = "USER_CREATE", operation = "CREATE")
+public ResponseEntity<User> createUser(@Valid @RequestBody CreateUserRequest request) {
+    User user = userService.createUser(request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(user);
+}
 ```
 
-**Role Interactions**:
-- Relationship Manager (RM):
-  - Can create proposals up to 5M NPR independently
-  - Must route larger proposals through approval chain
-  - Can view status but cannot modify after submission
-
-- Credit Analyst:
-  - Access to customer financial data
-  - Can request additional documents
-  - Cannot see other branches' analyses unless explicitly shared
-
-- Branch Manager:
-  - Can approve up to 10M NPR
-  - Can delegate approval authority during leave
-  - Must document reason for rejection
-
-#### Permission Inheritance Rules:
-```
-Chief Credit Officer
-└── Credit Committee Member
-    └── Branch Manager
-        └── Relationship Manager
-            └── Loan Officer
-```
-
-### 2. Time-Sensitive Operations
-
-#### Working Hours Enforcement
-- **Regular Hours**: Sun-Fri, 9 AM-5 PM NPT
-- **Extended Access**:
-  - Branch Manager: 8 AM-6 PM
-  - IT Support: 24/7 access
-  - System Maintenance: Sat 9 AM-1 PM
-
-#### Emergency Protocols
-- **System Override Capabilities**:
-  1. Branch Manager: Up to 1 hour extension
-  2. Regional Manager: Up to 3 hours
-  3. Chief Officer: Unlimited with audit log
-
-### 3. Branch Access Matrix
-
-| Role                    | Own Branch | Subordinate Branches | All Branches | After Hours |
-|------------------------|------------|---------------------|--------------|-------------|
-| Loan Officer           | Full       | View Only           | No Access    | No         |
-| Branch Manager         | Full       | Limited Approve     | View Only    | Emergency   |
-| Credit Committee       | Full       | Full                | Full         | Limited     |
-| Internal Auditor       | Full       | Full                | Full         | Yes         |
-
-### 4. Amount-Based Restrictions
-
-#### Transaction Limits
-```
-Loan Processing Limits (NPR):
-└── Chief Credit Officer (100M)
-    └── Credit Committee (50M)
-        └── Branch Manager (10M)
-            └── Relationship Manager (5M)
-                └── Loan Officer (1M)
+Example request:
+```json
+{
+  "username": "john.doe",
+  "email": "john.doe@company.com",
+  "branchId": "branch-001",
+  "roleIds": ["role-loan-officer"],
+  "permissionConfig": {
+    "branchAccessOverride": {
+      "type": "SPECIFIC_BRANCHES",
+      "allowedBranches": ["branch-001", "branch-002"],
+      "includeSubBranches": true
+    },
+    "amountLimitOverrides": {
+      "LOAN_APPROVE": 150000.0
+    },
+    "temporaryPermissions": [
+      {
+        "permissionId": "EMERGENCY_APPROVE",
+        "grantedAt": "2024-01-01T09:00:00Z",
+        "expiresAt": "2024-01-31T17:00:00Z",
+        "grantedBy": "admin-user-id",
+        "reason": "Temporary emergency approval authority"
+      }
+    ]
+  }
+}
 ```
 
-#### Override Mechanisms
-1. **Temporary Limit Increase**:
-   - Requires dual authorization
-   - Valid for specific transaction only
-   - Must be pre-approved by superior role
+## 📊 Monitoring & Analytics
 
-2. **Emergency Authorization**:
-   - Available during system outages
-   - Requires physical documentation
-   - Must be ratified within 24 hours
+### Performance Monitoring
+Access performance metrics at `/api/admin/monitoring/performance`:
 
-### 5. Special Access Scenarios
+```json
+{
+  "totalEvaluations": 15420,
+  "averageEvaluationTimeMs": 12.5,
+  "cacheHitRate": 0.85,
+  "topSlowPermissions": [
+    {
+      "permissionName": "LOAN_APPROVE",
+      "averageExecutionTime": 25.3,
+      "totalEvaluations": 1250
+    }
+  ],
+  "mostFrequentPermissions": [
+    {
+      "permissionName": "LOAN_VIEW",
+      "totalEvaluations": 8500,
+      "cacheHitRate": 0.92
+    }
+  ]
+}
+```
 
-#### 1. Audit Mode
-- Internal Auditor gains:
-  - Read access to all transactions
-  - View of deleted records
-  - Access to change history
-  - System configuration logs
+### System Health
+Check system health at `/api/admin/monitoring/health`:
 
-#### 2. Investigation Mode
-- Triggered by:
-  - Suspicious transaction flags
-  - Compliance violations
-  - Customer complaints
-- Special permissions:
-  - Transaction trace capability
-  - Document version history
-  - Communication logs
-  - Override history
+```json
+{
+  "status": "UP",
+  "cache": {
+    "totalCaches": 12,
+    "cacheNames": ["permissionEvaluations", "branches", "users"]
+  },
+  "performance": {
+    "totalEvaluations": 15420,
+    "averageExecutionTime": 12.5,
+    "cacheHitRate": 0.85
+  },
+  "branchHierarchy": {
+    "valid": true,
+    "orphanedBranches": 0,
+    "cyclicBranches": 0
+  }
+}
+```
 
-### 6. Compliance and Regulatory Requirements
+## 🔒 Security Features
 
-#### Role-Based Reports
-Each role must generate specific reports:
-- **Branch Manager**:
-  - Daily transaction summary
-  - Staff performance metrics
-  - Risk exposure reports
+### JWT Security
+- **Secure Token Generation**: HMAC SHA-512 signing
+- **Token Expiration**: Configurable access and refresh token lifetimes
+- **Refresh Token Rotation**: New tokens on refresh
+- **Token Validation**: Comprehensive token validation
 
-- **Credit Committee**:
-  - Portfolio quality reports
-  - Concentration risk analysis
-  - Approval rate statistics
+### Branch-Based Access Control
+```java
+// Users can only access resources from their branch or sub-branches
+"branchAccess": {
+  "type": "BRANCH_HIERARCHY",
+  "includeSubBranches": true
+}
+```
 
-- **Internal Auditor**:
-  - Compliance violation reports
-  - Access pattern analysis
-  - Override usage reports
+### Amount-Based Limits
+```java
+// Different approval limits based on user roles
+"amountLimit": {
+  "enabled": true,
+  "limitType": "ROLE_BASED",
+  "roleLimits": {
+    "LOAN_OFFICER": 100000.0,
+    "MANAGER": 1000000.0,
+    "SENIOR_MANAGER": 5000000.0
+  }
+}
+```
 
-#### Regulatory Checks
-- **Four-Eye Principle**:
-  - Large transactions require dual approval
-  - System configuration changes need verification
-  - User role modifications need secondary approval
+### Time-Based Restrictions
+```java
+// Access only during business hours
+"timeAccess": {
+  "enabled": true,
+  "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+  "allowedTimeWindows": [
+    {"startTime": "09:00", "endTime": "17:00"}
+  ],
+  "timezone": "Asia/Kathmandu"
+}
+```
 
-### 7. Dynamic Permission Adjustments
+### Custom Business Logic
+```java
+// Complex conditions using SpEL
+"conditions": [
+  "#resource.status == 'PENDING'",
+  "#resource.amount <= 1000000 or #user.roles.?[name=='SENIOR_MANAGER'].size() > 0",
+  "#resource.riskScore <= 70"
+]
+```
 
-#### Temporary Role Elevation
-- **Acting Positions**:
-  - Maximum duration: 30 days
-  - Requires documentation
-  - Maintains audit trail
+## 🚀 Performance Optimization
 
-- **Emergency Access**:
-  - Limited to 4 hours
-  - Requires incident report
-  - Automatic reversion
+### Caching Strategy
+- **Permission Evaluations**: Cached based on user, permission, and operation
+- **Branch Hierarchy**: Cached branch relationships and access patterns
+- **User/Role Data**: Cached frequently accessed user and role information
+- **JWT Token Validation**: Cached token validation results
 
-#### Role Conflicts
-- **Separation of Duties**:
-  - Maker-Checker rules
-  - Cannot approve own transactions
-  - Cannot audit own department
+### Performance Metrics
+- Real-time evaluation time tracking
+- Cache hit/miss ratios
+- Permission usage analytics
+- User activity monitoring
 
-### 8. Integration Scenarios
+## 🧪 Testing
 
-#### External System Access
-- **Core Banking System**:
-  - Read/Write permissions based on role
-  - Transaction initiation rights
-  - Report generation capabilities
+Run the test suite:
+```bash
+mvn test
+```
 
-- **Credit Bureau Integration**:
-  - Credit report access levels
-  - Score modification rights
-  - History viewing permissions
+### Test Coverage
+- Unit tests for all permission evaluation logic
+- Integration tests for API endpoints
+- Security tests for authentication and authorization
+- Performance tests for scalability validation
 
-#### API Access Control
-- **Internal APIs**:
-  - Role-based rate limiting
-  - Data field level permissions
-  - Encryption key access
+## 📚 API Documentation
 
-- **External APIs**:
-  - Partner system integration
-  - Third-party service access
-  - Data sharing restrictions 
+### Core Endpoints
+
+#### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/refresh` - Refresh JWT token
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Get current user profile
+
+#### User Management
+- `POST /api/v1/users` - Create user with permissions
+- `GET /api/v1/users/{id}` - Get user details
+- `PUT /api/v1/users/{id}` - Update user
+
+#### Permission Management
+- `POST /api/admin/permissions/permissions` - Create permission
+- `PUT /api/admin/permissions/roles/{roleId}/config` - Update role configuration
+- `POST /api/admin/permissions/users/{userId}/roles/{roleId}` - Assign role
+- `POST /api/admin/permissions/users/{userId}/amount-limits` - Set amount limits
+
+#### Monitoring
+- `GET /api/admin/monitoring/performance` - Performance metrics
+- `GET /api/admin/monitoring/health` - System health
+- `GET /api/admin/monitoring/cache/status` - Cache status
+- `POST /api/admin/monitoring/cache/clear` - Clear caches
+
+#### Test Endpoints
+- `GET /api/test/public` - Public endpoint (no auth)
+- `GET /api/test/authenticated` - Requires authentication
+- `GET /api/test/admin` - Requires ADMIN role
+- `GET /api/test/user-create` - Requires USER_CREATE permission
+
+## 🔧 Advanced Configuration
+
+### Custom Permission Evaluators
+Extend the system with custom evaluators:
+
+```java
+@Component
+public class CustomPermissionEvaluator {
+    
+    public boolean evaluateCustomCondition(User user, Object resource, Map<String, Object> context) {
+        // Your custom logic here
+        return true;
+    }
+}
+```
+
+### Performance Tuning
+```yaml
+# application.properties
+spring:
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=30m
+      
+rbac:
+  performance:
+    monitoring:
+      enabled: true
+      metrics-retention-days: 30
+
+app:
+  jwt:
+    secret: your-very-secure-secret-key-here
+    expiration: 86400
+    refresh-expiration: 604800
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the [documentation](docs/)
+- Review the [FAQ](docs/FAQ.md)
+
+## 🗺️ Roadmap
+
+- [ ] Redis cache integration
+- [ ] GraphQL API support
+- [ ] Advanced analytics dashboard
+- [ ] Multi-tenant support
+- [ ] OAuth2/OIDC integration
+- [ ] Kubernetes deployment templates
+- [ ] Rate limiting and throttling
+- [ ] Advanced audit logging
+
+---
+
+**Built with ❤️ for enterprise security and scalability** 

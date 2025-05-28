@@ -51,13 +51,13 @@ public class PermissionSyncService {
     @Scheduled(cron = "${permission.sync.cron:0 0 * * * *}") // Default: every hour
     @Transactional
     public void syncPermissions() {
-        syncPermissions("SCHEDULER", "system");
+//        syncPermissions("SCHEDULER", "system");
     }
 
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
-        syncPermissions();
+//        syncPermissions();
     }
 
     @Transactional

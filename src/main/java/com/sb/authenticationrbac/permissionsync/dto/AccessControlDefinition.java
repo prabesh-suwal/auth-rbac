@@ -1,6 +1,5 @@
 package com.sb.authenticationrbac.permissionsync.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sb.authenticationrbac.entities.*;
 import lombok.Data;
 import java.util.List;
@@ -8,22 +7,11 @@ import java.util.Map;
 
 @Data
 public class AccessControlDefinition {
-    @JsonProperty("required_role")
     private String requiredRole;
-    
-    @JsonProperty("branch_access")
     private String branchAccess;
-    
-    @JsonProperty("time_window")
     private String timeWindow;
-    
-    @JsonProperty("amount_limit")
     private Double amountLimit;
-    
-    @JsonProperty("validation_rules")
     private List<String> validationRules;
-    
-    @JsonProperty("additional_config")
     private Map<String, Object> additionalConfig;
     
     public PermissionConfig toPermissionConfig() {

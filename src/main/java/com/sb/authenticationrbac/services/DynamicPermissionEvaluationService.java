@@ -2,8 +2,12 @@ package com.sb.authenticationrbac.services;
 
 import com.sb.authenticationrbac.dtos.PermissionResult;
 import com.sb.authenticationrbac.entities.*;
+import com.sb.authenticationrbac.repositories.PermissionRepository;
+import com.sb.authenticationrbac.repositories.RoleRepository;
 import com.sb.authenticationrbac.repositories.UserRepository;
-import org.bson.types.ObjectId;
+import com.sb.authenticationrbac.role.dto.RoleConfiguration;
+import com.sb.authenticationrbac.security.SecurityContextUtils;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -12,7 +16,10 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
+import org.springframework.util.StringUtils;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -20,6 +27,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+
 @Service
 public class DynamicPermissionEvaluationService {
 
@@ -27,12 +35,30 @@ public class DynamicPermissionEvaluationService {
     private final ExpressionParser parser = new SpelExpressionParser();
     private final BranchHierarchyService branchHierarchyService;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
+    private final PermissionPerformanceMonitoringService performanceMonitoringService;
 
     public DynamicPermissionEvaluationService(MongoTemplate mongoTemplate,
-                                              BranchHierarchyService branchHierarchyService, UserRepository userRepository) {
+                                              BranchHierarchyService branchHierarchyService, 
+                                              UserRepository userRepository, 
+                                              RoleRepository roleRepository, 
+                                              PermissionRepository permissionRepository,
+                                              PermissionPerformanceMonitoringService performanceMonitoringService) {
         this.mongoTemplate = mongoTemplate;
         this.branchHierarchyService = branchHierarchyService;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.permissionRepository = permissionRepository;
+        this.performanceMonitoringService = performanceMonitoringService;
+    }
+
+    /**
+     * Check permission for the current authenticated user
+     */
+    public PermissionResult hasPermission(String permissionName, String operation, Object resource, Map<String, Object> context) {
+        String currentUserId = getCurrentUserId();
+        return hasPermission(currentUserId, permissionName, operation, resource, context);
     }
 
     /**
@@ -41,10 +67,87 @@ public class DynamicPermissionEvaluationService {
     public PermissionResult hasPermission(String userId, String permissionName,
                                           String operation, Object resource,
                                           Map<String, Object> context) {
+        
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        boolean fromCache = false;
+        PermissionResult result = null;
+        
+        try {
+            // Try to get from cache first
+            String cacheKey = userId + "_" + permissionName + "_" + operation;
+            result = getCachedPermissionResult(cacheKey, userId, permissionName, operation, resource, context);
+            
+            if (result != null) {
+                fromCache = true;
+            } else {
+                // Evaluate permission
+                result = evaluatePermissionInternal(userId, permissionName, operation, resource, context);
+            }
+            
+        } catch (Exception e) {
+            result = PermissionResult.denied("Permission evaluation failed: " + e.getMessage());
+        } finally {
+            stopWatch.stop();
+            
+            // Record performance metrics
+            if (result != null) {
+                performanceMonitoringService.recordPermissionEvaluation(
+                    permissionName, 
+                    userId, 
+                    stopWatch.getTotalTimeMillis(), 
+                    result.isAllowed(), 
+                    fromCache
+                );
+            }
+        }
+        
+        return result != null ? result : PermissionResult.denied("Unknown error occurred");
+    }
 
+    /**
+     * Get the current authenticated user's ID from SecurityContext
+     * 
+     * @return current user ID
+     * @throws IllegalStateException if no user is authenticated
+     */
+    private String getCurrentUserId() {
+        return SecurityContextUtils.getCurrentUserId()
+                .orElseThrow(() -> new IllegalStateException("No authenticated user found in security context"));
+    }
+
+    /**
+     * Get the current authenticated user's branch ID from SecurityContext
+     * 
+     * @return current user's branch ID
+     */
+    private Optional<String> getCurrentUserBranchId() {
+        return SecurityContextUtils.getCurrentUserBranchId();
+    }
+
+    /**
+     * Check if the current user has a specific authority
+     * 
+     * @param authority the authority to check
+     * @return true if the user has the authority
+     */
+    private boolean currentUserHasAuthority(String authority) {
+        return SecurityContextUtils.hasAuthority(authority);
+    }
+
+    @Cacheable(value = "permissionEvaluations", key = "#cacheKey")
+    public PermissionResult getCachedPermissionResult(String cacheKey, String userId, String permissionName,
+                                                      String operation, Object resource, Map<String, Object> context) {
+        // This method will only be called if not in cache
+        // Return null to indicate cache miss
+        return null;
+    }
+
+    private PermissionResult evaluatePermissionInternal(String userId, String permissionName,
+                                                       String operation, Object resource,
+                                                       Map<String, Object> context) {
         // Load user and their roles
-//        ObjectId objectId = new ObjectId(userId);
-//        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         User user = mongoTemplate.findById(userId, User.class);
         if (user == null || !user.isActive()) {
             return PermissionResult.denied("User not found or inactive");
@@ -60,6 +163,17 @@ public class DynamicPermissionEvaluationService {
             return PermissionResult.denied("Permission not found");
         }
 
+        List<Role> userRoles = this.roleRepository.findByIdInAndActive(user.getRoleIds(), true);
+        Permission superAdmin = this.permissionRepository.findByName("SUPER_ADMIN_ACCESS").orElse(new Permission());
+        Set<String> permissionIds = userRoles.stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permission::getId)
+                .collect(Collectors.toSet());
+
+        if (permissionIds.contains(superAdmin.getId())){
+            return PermissionResult.allowed("Super admin permission");
+        }
+
         // Check if user has this permission through roles
         if (!hasPermissionThroughRoles(user, permission.getId())) {
             return PermissionResult.denied("Permission not granted through roles");
@@ -70,13 +184,14 @@ public class DynamicPermissionEvaluationService {
     }
 
     private boolean hasPermissionThroughRoles(User user, String permissionId) {
-        List<Role> userRoles = mongoTemplate.find(
-                Query.query(Criteria.where("name").in(user.getRoleIds()).and("active").is(true)),
-                Role.class
-        );
+        List<Role> userRoles = this.roleRepository.findByIdInAndActive(user.getRoleIds(), true);
+        Permission superAdmin = this.permissionRepository.findByName("SUPER_ADMIN_ACCESS").orElse(new Permission());
+        Set<String> permissionIds = userRoles.stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permission::getId)
+                .collect(Collectors.toSet());
 
-        return userRoles.stream()
-                .anyMatch(role -> role.getPermissions().contains(permissionId));
+        return permissionIds.contains(permissionId) || permissionIds.contains(superAdmin.getId());
     }
 
     private PermissionResult evaluatePermissionConditions(User user, Permission permission,
@@ -145,31 +260,226 @@ public class DynamicPermissionEvaluationService {
         String userBranchId = user.getBranchId();
         String resourceBranchId = extractBranchId(resource, branchConfig.getBranchFieldPath());
 
+        // HIERARCHY 1: Check user-specific branch access overrides (highest priority)
+        PermissionResult userOverrideResult = checkUserSpecificBranchAccess(user, userBranchId, resourceBranchId, context);
+        if (userOverrideResult != null) {
+            return userOverrideResult;
+        }
+
+        // HIERARCHY 2: Check role-level branch access configuration (medium priority)
+        PermissionResult roleLevelResult = checkRoleLevelBranchAccess(user, userBranchId, resourceBranchId, branchConfig, context);
+        if (roleLevelResult != null) {
+            return roleLevelResult;
+        }
+
+        // HIERARCHY 3: Apply permission-level branch access configuration (lowest priority)
+        return applyPermissionLevelBranchAccess(userBranchId, resourceBranchId, branchConfig);
+    }
+
+    /**
+     * HIERARCHY 1: Check user-specific branch access overrides
+     * Highest priority - user-specific configurations override everything
+     */
+    private PermissionResult checkUserSpecificBranchAccess(User user, String userBranchId, 
+                                                          String resourceBranchId, Map<String, Object> context) {
+        if (user.getPermissionConfig() == null) {
+            return null; // No user-specific overrides
+        }
+
+        // Check if user has specific branch access grants
+        List<ResourceAccess> resourceAccesses = user.getPermissionConfig().getResourceAccesses();
+        if (resourceAccesses != null) {
+            for (ResourceAccess access : resourceAccesses) {
+                if ("BRANCH".equals(access.getResourceType()) && 
+                    resourceBranchId.equals(access.getResourceId())) {
+                    
+                    if ("GRANT".equals(access.getAccessType())) {
+                        return PermissionResult.allowed("User-specific branch access grant");
+                    } else if ("DENY".equals(access.getAccessType())) {
+                        return PermissionResult.denied("User-specific branch access denial");
+                    }
+                }
+            }
+        }
+
+        // Check branch access overrides in user permission config
+        if (user.getPermissionConfig().getBranchAccessOverride() != null) {
+            BranchAccessConfig branchOverride = user.getPermissionConfig().getBranchAccessOverride();
+            
+            // Check if user has specific override configuration
+            if (branchOverride.getType() != null) {
+                switch (branchOverride.getType()) {
+                    case "ALL_BRANCHES":
+                        return PermissionResult.allowed("User-specific branch override: ALL_BRANCHES");
+                    case "OWN_BRANCH":
+                        if (userBranchId.equals(resourceBranchId)) {
+                            return PermissionResult.allowed("User-specific branch override: OWN_BRANCH");
+                        }
+                        return PermissionResult.denied("User-specific branch override: OWN_BRANCH restriction");
+                    case "SPECIFIC_BRANCHES":
+                        if (branchOverride.getAllowedBranches() != null && 
+                            branchOverride.getAllowedBranches().contains(resourceBranchId)) {
+                            return PermissionResult.allowed("User-specific branch override: SPECIFIC_BRANCHES");
+                        }
+                        return PermissionResult.denied("User-specific branch override: Branch not in allowed list");
+                    case "INHERIT":
+                        // Continue to role-level check
+                        break;
+                }
+            }
+        }
+
+        return null; // No user-specific override found, continue to next hierarchy
+    }
+
+    /**
+     * HIERARCHY 2: Check role-level branch access configuration
+     * Medium priority - role configurations can override permission restrictions
+     */
+    private PermissionResult checkRoleLevelBranchAccess(User user, String userBranchId, String resourceBranchId,
+                                                       BranchAccessConfig branchConfig, Map<String, Object> context) {
+        List<Role> userRoles = roleRepository.findByIdInAndActive(user.getRoleIds(), true);
+        
+        // Check each role's branch restrictions (highest role privilege wins)
+        RoleBranchAccessResult roleBranchAccess = determineRoleBranchAccess(userRoles, userBranchId, resourceBranchId);
+        
+        if (roleBranchAccess.hasAccess()) {
+            return PermissionResult.allowed(roleBranchAccess.getReason());
+        } else if (roleBranchAccess.isExplicitDeny()) {
+            return PermissionResult.denied(roleBranchAccess.getReason());
+        }
+
+        return null; // No role-level override, continue to permission-level check
+    }
+
+    /**
+     * HIERARCHY 3: Apply permission-level branch access configuration
+     * Lowest priority - default permission-based access control
+     */
+    private PermissionResult applyPermissionLevelBranchAccess(String userBranchId, String resourceBranchId, 
+                                                             BranchAccessConfig branchConfig) {
         switch (branchConfig.getType()) {
             case "ALL_BRANCHES":
-                return PermissionResult.allowed("All branches access");
+                return PermissionResult.allowed("Permission-level: All branches access");
 
             case "OWN_BRANCH":
                 if (userBranchId.equals(resourceBranchId)) {
-                    return PermissionResult.allowed("Own branch access");
+                    return PermissionResult.allowed("Permission-level: Own branch access");
                 }
-                return PermissionResult.denied("Access limited to own branch");
+                return PermissionResult.denied("Permission-level: Access limited to own branch");
 
             case "SPECIFIC_BRANCHES":
-                if (branchConfig.getAllowedBranches().contains(resourceBranchId)) {
-                    return PermissionResult.allowed("Specific branch access granted");
+                if (branchConfig.getAllowedBranches() != null && branchConfig.getAllowedBranches().contains(resourceBranchId)) {
+                    return PermissionResult.allowed("Permission-level: Specific branch access granted");
                 }
-                return PermissionResult.denied("Branch not in allowed list");
+                return PermissionResult.denied("Permission-level: Branch not in allowed list");
 
             case "BRANCH_HIERARCHY":
                 if (branchHierarchyService.hasAccessToBranch(userBranchId, resourceBranchId, branchConfig.isIncludeSubBranches())) {
-                    return PermissionResult.allowed("Branch hierarchy access");
+                    return PermissionResult.allowed("Permission-level: Branch hierarchy access");
                 }
-                return PermissionResult.denied("Branch not in hierarchy");
+                return PermissionResult.denied("Permission-level: Branch not in hierarchy");
 
             default:
-                return PermissionResult.denied("Unknown branch access type");
+                return PermissionResult.denied("Permission-level: Unknown branch access type");
         }
+    }
+
+    /**
+     * Determine the effective branch access based on all user roles
+     * Implements role hierarchy where higher privileges override lower ones
+     */
+    private RoleBranchAccessResult determineRoleBranchAccess(List<Role> userRoles, String userBranchId, String resourceBranchId) {
+        boolean hasAllBranchesAccess = false;
+        boolean hasSubordinateAccess = false;
+        boolean hasCrossBranchView = false;
+        String highestPrivilegeRole = null;
+        
+        for (Role role : userRoles) {
+            if (role.getConfiguration() == null || role.getConfiguration().getBranchRestrictions() == null) {
+                continue;
+            }
+            
+            RoleConfiguration.BranchRestrictions restrictions = role.getConfiguration().getBranchRestrictions();
+            String restrictionType = restrictions.getType();
+            boolean allowCrossBranch = restrictions.isAllowCrossBranchView();
+            
+            switch (restrictionType) {
+                case "ALL_BRANCHES":
+                    hasAllBranchesAccess = true;
+                    highestPrivilegeRole = role.getName();
+                    break;
+                    
+                case "OWN_BRANCH_AND_SUBORDINATES":
+                    if (!hasAllBranchesAccess) {
+                        hasSubordinateAccess = true;
+                        if (allowCrossBranch) {
+                            hasCrossBranchView = true;
+                        }
+                        if (highestPrivilegeRole == null) {
+                            highestPrivilegeRole = role.getName();
+                        }
+                    }
+                    break;
+                    
+                case "OWN_BRANCH_ONLY":
+                    if (!hasAllBranchesAccess && !hasSubordinateAccess && allowCrossBranch) {
+                        hasCrossBranchView = true;
+                        if (highestPrivilegeRole == null) {
+                            highestPrivilegeRole = role.getName();
+                        }
+                    }
+                    break;
+            }
+        }
+        
+        // Determine access based on highest privilege
+        if (hasAllBranchesAccess) {
+            return new RoleBranchAccessResult(true, false, 
+                String.format("Role-level: ALL_BRANCHES access via %s role", highestPrivilegeRole));
+        }
+        
+        if (hasSubordinateAccess) {
+            // Check if target branch is in hierarchy
+            if (userBranchId.equals(resourceBranchId) || 
+                branchHierarchyService.hasAccessToBranch(userBranchId, resourceBranchId, true)) {
+                return new RoleBranchAccessResult(true, false,
+                    String.format("Role-level: Subordinate branch access via %s role", highestPrivilegeRole));
+            }
+            
+            // If cross-branch view is allowed, grant access
+            if (hasCrossBranchView) {
+                return new RoleBranchAccessResult(true, false,
+                    String.format("Role-level: Cross-branch access via %s role", highestPrivilegeRole));
+            }
+        }
+        
+        if (hasCrossBranchView && !userBranchId.equals(resourceBranchId)) {
+            return new RoleBranchAccessResult(true, false,
+                String.format("Role-level: Cross-branch view access via %s role", highestPrivilegeRole));
+        }
+        
+        // No role-level access granted
+        return new RoleBranchAccessResult(false, false, "No role-level branch access");
+    }
+
+    /**
+     * Helper class to encapsulate role-based branch access results
+     */
+    private static class RoleBranchAccessResult {
+        private final boolean hasAccess;
+        private final boolean explicitDeny;
+        private final String reason;
+        
+        public RoleBranchAccessResult(boolean hasAccess, boolean explicitDeny, String reason) {
+            this.hasAccess = hasAccess;
+            this.explicitDeny = explicitDeny;
+            this.reason = reason;
+        }
+        
+        public boolean hasAccess() { return hasAccess; }
+        public boolean isExplicitDeny() { return explicitDeny; }
+        public String getReason() { return reason; }
     }
 
     private PermissionResult evaluateAmountLimit(User user, AmountLimitConfig amountConfig,
@@ -195,7 +505,13 @@ public class DynamicPermissionEvaluationService {
     private Double calculateAmountLimit(User user, AmountLimitConfig config) {
         // Check user-specific override first
         if (user.getPermissionConfig() != null && user.getPermissionConfig().getAmountLimitOverrides() != null) {
-            // Implementation would check user-specific limits
+            // Get the highest user-specific limit
+            Double userLimit = user.getPermissionConfig().getAmountLimitOverrides().values().stream()
+                    .max(Double::compareTo)
+                    .orElse(null);
+            if (userLimit != null) {
+                return userLimit;
+            }
         }
 
         switch (config.getLimitType()) {
@@ -204,6 +520,9 @@ public class DynamicPermissionEvaluationService {
 
             case "ROLE_BASED":
                 return calculateRoleBasedLimit(user, config.getRoleLimits());
+
+            case "USER_SPECIFIC":
+                return getUserSpecificLimit(user, config);
 
             case "DYNAMIC":
                 return evaluateDynamicLimit(user, config.getDynamicLimitExpression());
@@ -214,6 +533,10 @@ public class DynamicPermissionEvaluationService {
     }
 
     private Double calculateRoleBasedLimit(User user, Map<String, Double> roleLimits) {
+        if (roleLimits == null) {
+            return 0.0;
+        }
+
         List<Role> userRoles = mongoTemplate.find(
                 Query.query(Criteria.where("_id").in(user.getRoleIds())),
                 Role.class
@@ -223,6 +546,15 @@ public class DynamicPermissionEvaluationService {
                 .map(role -> roleLimits.getOrDefault(role.getName(), 0.0))
                 .max(Double::compareTo)
                 .orElse(0.0);
+    }
+
+    private Double getUserSpecificLimit(User user, AmountLimitConfig config) {
+        if (user.getPermissionConfig() != null && user.getPermissionConfig().getAmountLimitOverrides() != null) {
+            return user.getPermissionConfig().getAmountLimitOverrides().values().stream()
+                    .max(Double::compareTo)
+                    .orElse(config.getDefaultLimit());
+        }
+        return config.getDefaultLimit();
     }
 
     private Double evaluateDynamicLimit(User user, String expression) {
@@ -273,10 +605,14 @@ public class DynamicPermissionEvaluationService {
     }
 
     private boolean isWithinTimeWindow(LocalTime currentTime, TimeWindow window) {
-        LocalTime startTime = LocalTime.parse(window.getStartTime(), DateTimeFormatter.ofPattern("HH:mm"));
-        LocalTime endTime = LocalTime.parse(window.getEndTime(), DateTimeFormatter.ofPattern("HH:mm"));
+        try {
+            LocalTime startTime = LocalTime.parse(window.getStartTime(), DateTimeFormatter.ofPattern("HH:mm"));
+            LocalTime endTime = LocalTime.parse(window.getEndTime(), DateTimeFormatter.ofPattern("HH:mm"));
 
-        return !currentTime.isBefore(startTime) && !currentTime.isAfter(endTime);
+            return !currentTime.isBefore(startTime) && !currentTime.isAfter(endTime);
+        } catch (Exception e) {
+            return false; // Safe fallback
+        }
     }
 
     private PermissionResult evaluateResourceAccess(User user, ResourceAccessConfig resourceConfig,
@@ -298,16 +634,16 @@ public class DynamicPermissionEvaluationService {
 
             case "SPECIFIC":
                 String resourceId = extractResourceId(resource);
-                if (resourceConfig.getAllowedResourceIds().contains(resourceId)) {
+                if (resourceConfig.getAllowedResourceIds() != null && resourceConfig.getAllowedResourceIds().contains(resourceId)) {
                     return PermissionResult.allowed("Specific resource access granted");
                 }
                 return PermissionResult.denied("Resource not in allowed list");
 
             case "CONDITIONAL":
-                boolean b = evaluateResourceConditions(user, resourceConfig.getAccessConditions(), resource, context);
-                if (b ) {
+                boolean conditionMet = evaluateResourceConditions(user, resourceConfig.getAccessConditions(), resource, context);
+                if (conditionMet) {
                     return PermissionResult.allowed("Conditional resource access granted");
-                }else {
+                } else {
                     return PermissionResult.denied("Conditional resource access denied");
                 }
 
@@ -376,7 +712,7 @@ public class DynamicPermissionEvaluationService {
         List<ResourceAccess> resourceAccesses = user.getPermissionConfig().getResourceAccesses();
         if (resourceAccesses != null) {
             String resourceId = extractResourceId(resource);
-            String resourceType = resource.getClass().getSimpleName().toUpperCase();
+            String resourceType = resource != null ? resource.getClass().getSimpleName().toUpperCase() : null;
 
             for (ResourceAccess access : resourceAccesses) {
                 if (access.getResourceType().equals(resourceType) &&
@@ -414,6 +750,10 @@ public class DynamicPermissionEvaluationService {
     }
 
     private boolean evaluateResourceConditions(User user, List<String> conditions, Object resource, Map<String, Object> context) {
+        if (conditions == null || conditions.isEmpty()) {
+            return true;
+        }
+        
         for (String condition : conditions) {
             if (!evaluateSpELCondition(user, condition, resource, context)) {
                 return false;
@@ -423,47 +763,183 @@ public class DynamicPermissionEvaluationService {
     }
 
     private boolean evaluateTemporaryPermissionConditions(TemporaryPermission tempPerm, Object resource, Map<String, Object> context) {
-        // Implement evaluation of temporary permission conditions
-        return tempPerm.getConditions() == null || tempPerm.getConditions().isEmpty();
+        if (tempPerm.getConditions() == null || tempPerm.getConditions().isEmpty()) {
+            return true;
+        }
+
+        // Evaluate each condition in the temporary permission
+        for (Map.Entry<String, Object> entry : tempPerm.getConditions().entrySet()) {
+            String conditionKey = entry.getKey();
+            Object expectedValue = entry.getValue();
+            
+            // Extract actual value from resource or context
+            Object actualValue = extractFieldValue(resource, conditionKey);
+            if (actualValue == null && context != null) {
+                actualValue = context.get(conditionKey);
+            }
+            
+            if (!Objects.equals(expectedValue, actualValue)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // Helper methods for extracting data from resources
     private String extractBranchId(Object resource, String fieldPath) {
-        // Implementation to extract branch ID using reflection or specific logic
-        return null;
+        if (resource == null || fieldPath == null) {
+            return null;
+        }
+        
+        Object value = extractFieldValue(resource, fieldPath);
+        return value != null ? value.toString() : null;
     }
 
     private Double extractAmount(Object resource, Map<String, Object> context, String fieldPath) {
-        // Implementation to extract amount from resource or context
+        // First try to get from context
+        if (context != null && context.containsKey("amount")) {
+            Object amount = context.get("amount");
+            return convertToDouble(amount);
+        }
+        
+        // Then try to extract from resource
+        if (resource != null && fieldPath != null) {
+            Object value = extractFieldValue(resource, fieldPath);
+            return convertToDouble(value);
+        }
+        
         return null;
     }
 
     private String extractOwnerId(Object resource, String fieldPath) {
-        // Implementation to extract owner ID
-        return null;
+        if (resource == null || fieldPath == null) {
+            return null;
+        }
+        
+        Object value = extractFieldValue(resource, fieldPath);
+        return value != null ? value.toString() : null;
     }
 
     private String extractResourceId(Object resource) {
-        // Implementation to extract resource ID
+        if (resource == null) {
+            return null;
+        }
+        
+        // Try common ID field names
+        String[] idFields = {"id", "_id", "resourceId"};
+        for (String fieldName : idFields) {
+            Object value = extractFieldValue(resource, fieldName);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        
         return null;
     }
 
+    /**
+     * Generic field value extraction using reflection and dot notation
+     */
+    private Object extractFieldValue(Object object, String fieldPath) {
+        if (object == null || !StringUtils.hasText(fieldPath)) {
+            return null;
+        }
+
+        try {
+            // Handle Map objects
+            if (object instanceof Map) {
+                Map<?, ?> map = (Map<?, ?>) object;
+                String[] pathParts = fieldPath.split("\\.");
+                Object current = map;
+                
+                for (String part : pathParts) {
+                    if (current instanceof Map) {
+                        current = ((Map<?, ?>) current).get(part);
+                    } else {
+                        return null;
+                    }
+                }
+                return current;
+            }
+
+            // Handle regular objects using reflection
+            String[] pathParts = fieldPath.split("\\.");
+            Object current = object;
+            
+            for (String part : pathParts) {
+                if (current == null) {
+                    return null;
+                }
+                
+                Class<?> currentClass = current.getClass();
+                Field field = findField(currentClass, part);
+                
+                if (field != null) {
+                    field.setAccessible(true);
+                    current = field.get(current);
+                } else {
+                    return null;
+                }
+            }
+            
+            return current;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Field findField(Class<?> clazz, String fieldName) {
+        while (clazz != null) {
+            try {
+                return clazz.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                clazz = clazz.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private Double convertToDouble(Object value) {
+        if (value == null) {
+            return null;
+        }
+        
+        try {
+            if (value instanceof Number) {
+                return ((Number) value).doubleValue();
+            } else if (value instanceof String) {
+                return Double.parseDouble((String) value);
+            } else if (value instanceof BigDecimal) {
+                return ((BigDecimal) value).doubleValue();
+            }
+        } catch (NumberFormatException e) {
+            // Ignore and return null
+        }
+        
+        return null;
+    }
+
+    @Cacheable(value = "branches", key = "#branchId")
     private Branch getBranch(String branchId) {
         return mongoTemplate.findById(branchId, Branch.class);
     }
 
     private void logPermissionEvaluation(String userId, String permissionId, String operation,
                                          boolean allowed, String reason, Map<String, Object> context) {
-        PermissionEvaluation evaluation = new PermissionEvaluation();
-        evaluation.setUserId(userId);
-        evaluation.setPermissionId(permissionId);
-        evaluation.setOperation(operation);
-        evaluation.setAllowed(allowed);
-        evaluation.setReason(reason);
-        evaluation.setContext(context);
-        ZoneId nepalTimeZone = ZoneId.of("Asia/Kathmandu");
-        evaluation.setEvaluatedAt(LocalDateTime.now(nepalTimeZone));
+        try {
+            PermissionEvaluation evaluation = new PermissionEvaluation();
+            evaluation.setUserId(userId);
+            evaluation.setPermissionId(permissionId);
+            evaluation.setOperation(operation);
+            evaluation.setAllowed(allowed);
+            evaluation.setReason(reason);
+            evaluation.setContext(context);
+            ZoneId nepalTimeZone = ZoneId.of("Asia/Kathmandu");
+            evaluation.setEvaluatedAt(LocalDateTime.now(nepalTimeZone));
 
-        mongoTemplate.save(evaluation);
+            mongoTemplate.save(evaluation);
+        } catch (Exception e) {
+            // Log error but don't fail the permission evaluation
+        }
     }
 }

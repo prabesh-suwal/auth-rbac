@@ -1,8 +1,9 @@
 package com.sb.authenticationrbac.entities;
 
-import com.sb.authenticationrbac.entities.RoleConfiguration; // Corrected import
+import com.sb.authenticationrbac.role.dto.RoleConfiguration;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -15,7 +16,9 @@ public class Role {
     private String name;
     private String description;
     private String parentRoleName; // Optional: for role hierarchy
-    private List<String> permissions; // Permission IDs
+
+    @DBRef
+    private List<Permission> permissions; // Permission IDs
     private RoleConfiguration configuration; // Dynamic role configuration
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

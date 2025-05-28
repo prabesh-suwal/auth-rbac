@@ -3,6 +3,7 @@ package com.sb.authenticationrbac.aop;
 import com.sb.authenticationrbac.dtos.PermissionResult;
 import com.sb.authenticationrbac.exceptions.PermissionDeniedException;
 import com.sb.authenticationrbac.repositories.UserRepository;
+import com.sb.authenticationrbac.security.SecurityContextUtils;
 import com.sb.authenticationrbac.services.DynamicPermissionEvaluationService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -13,12 +14,12 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import com.sb.authenticationrbac.security.CustomUserDetails;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Aspect
 @Component
@@ -26,12 +27,12 @@ import java.util.Map;
 public class DynamicPermissionCheckAspect {
 
     private final UserRepository userRepository;
-
     private final DynamicPermissionEvaluationService permissionService;
     private final ResourceLoaderService resourceLoaderService;
     private final HttpServletRequest request;
 
-    public DynamicPermissionCheckAspect(UserRepository userRepository, DynamicPermissionEvaluationService permissionService,
+    public DynamicPermissionCheckAspect(UserRepository userRepository,
+                                        DynamicPermissionEvaluationService permissionService,
                                         ResourceLoaderService resourceLoaderService,
                                         HttpServletRequest request) {
         this.userRepository = userRepository;
@@ -48,8 +49,20 @@ public class DynamicPermissionCheckAspect {
             return joinPoint.proceed();
         }
         
+        // Get method parameters and resource for detailed exception
+        Map<String, Object> methodParams = getMethodParameters(joinPoint);
+        Object resource = loadResource(checkPermission, methodParams);
+        Map<String, Object> context = createEvaluationContext(joinPoint, checkPermission, methodParams);
+        
+        String message = result.getReason().isEmpty() ? checkPermission.message() : result.getReason();
+        String resourceString = resource != null ? resource.toString() : null;
+        
         throw new PermissionDeniedException(
-            checkPermission.message().isEmpty() ? result.getReason() : checkPermission.message()
+            message,
+            checkPermission.value(),
+            resourceString,
+            checkPermission.operation(),
+            context
         );
     }
 
@@ -57,6 +70,10 @@ public class DynamicPermissionCheckAspect {
     public Object checkMultiplePermissions(ProceedingJoinPoint joinPoint, CheckPermissions checkPermissions) throws Throwable {
         String logic = checkPermissions.logic();
         boolean result;
+        
+        // Get method parameters and context for detailed exception (shared for all permissions)
+        Map<String, Object> methodParams = getMethodParameters(joinPoint);
+        Map<String, Object> context = createEvaluationContext(joinPoint, checkPermissions.value()[0], methodParams);
         
         if ("OR".equalsIgnoreCase(logic)) {
             result = false;
@@ -73,8 +90,16 @@ public class DynamicPermissionCheckAspect {
                 PermissionResult permResult = evaluatePermission(joinPoint, permission);
                 if (!permResult.isAllowed()) {
                     result = false;
+                    Object resource = loadResource(permission, methodParams);
+                    String message = checkPermissions.message().isEmpty() ? permResult.getReason() : checkPermissions.message();
+                    String resourceString = resource != null ? resource.toString() : null;
+                    
                     throw new PermissionDeniedException(
-                        checkPermissions.message().isEmpty() ? permResult.getReason() : checkPermissions.message()
+                        message,
+                        permission.value(),
+                        resourceString,
+                        permission.operation(),
+                        context
                     );
                 }
             }
@@ -84,21 +109,28 @@ public class DynamicPermissionCheckAspect {
             return joinPoint.proceed();
         }
         
-        throw new PermissionDeniedException(checkPermissions.message());
+        // If we reach here, it means OR logic failed for all permissions
+        String firstPermissionName = checkPermissions.value().length > 0 ? checkPermissions.value()[0].value() : "UNKNOWN";
+        Object firstResource = checkPermissions.value().length > 0 ? loadResource(checkPermissions.value()[0], methodParams) : null;
+        String firstOperation = checkPermissions.value().length > 0 ? checkPermissions.value()[0].operation() : "";
+        String resourceString = firstResource != null ? firstResource.toString() : null;
+        
+        throw new PermissionDeniedException(
+            checkPermissions.message(),
+            firstPermissionName,
+            resourceString,
+            firstOperation,
+            context
+        );
     }
 
     private PermissionResult evaluatePermission(ProceedingJoinPoint joinPoint, CheckPermission checkPermission) {
         try {
-            // Get current user
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() instanceof String && auth.getPrincipal().equals("anonymousUser")) {
-                return PermissionResult.denied("User not authenticated or anonymous");
+            Optional<String> currentUserId = SecurityContextUtils.getCurrentUserId();
+            if (currentUserId.isEmpty()) {
+                return PermissionResult.denied("No authenticated user found");
             }
-
-            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-            String userId = userDetails.getUserId();
-            // String userId = "682f57330b508dac57282092"; // Removed hardcoded userId
-
+            String userId = currentUserId.get();
             // Get method parameters
             Map<String, Object> methodParams = getMethodParameters(joinPoint);
             
@@ -122,6 +154,7 @@ public class DynamicPermissionCheckAspect {
             return PermissionResult.denied("Permission evaluation failed: " + e.getMessage());
         }
     }
+
 
     private Map<String, Object> getMethodParameters(ProceedingJoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -171,15 +204,30 @@ public class DynamicPermissionCheckAspect {
         }
         
         // Add request information
-        context.put("requestMethod", request.getMethod());
-        context.put("requestPath", request.getRequestURI());
-        context.put("userAgent", request.getHeader("User-Agent"));
-        context.put("remoteAddr", request.getRemoteAddr());
+        if (request != null) {
+            context.put("requestMethod", request.getMethod());
+            context.put("requestPath", request.getRequestURI());
+            context.put("userAgent", request.getHeader("User-Agent"));
+            context.put("remoteAddr", request.getRemoteAddr());
+            
+            // Add request parameters
+            Map<String, String[]> requestParams = request.getParameterMap();
+            if (!requestParams.isEmpty()) {
+                context.put("requestParams", requestParams);
+            }
+        }
         
         // Add method information
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         context.put("methodName", signature.getMethod().getName());
         context.put("className", signature.getDeclaringTypeName());
+        
+        // Add authentication information
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            context.put("authenticationName", authentication.getName());
+            context.put("authorities", authentication.getAuthorities());
+        }
         
         return context;
     }

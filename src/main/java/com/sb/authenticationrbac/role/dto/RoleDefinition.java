@@ -18,6 +18,7 @@ public class RoleDefinition {
     private String description;
 
     @NotEmpty(message = "At least one permission is required")
+    @JsonProperty(value = "permissionIds")
     private List<@NotBlank(message = "Permission cannot be blank") String> permissionIds;
 
     @Valid

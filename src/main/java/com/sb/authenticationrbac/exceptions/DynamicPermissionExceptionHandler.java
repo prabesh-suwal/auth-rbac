@@ -17,7 +17,7 @@ public class DynamicPermissionExceptionHandler {
 
     @ExceptionHandler(PermissionDeniedException.class)
     public ResponseEntity<ErrorResponse> handlePermissionDenied(PermissionDeniedException ex) {
-        logger.warn("Permission denied: {} - Permission: {}, Resource: {}, Operation: {}", 
+        logger.info("Permission denied: {} - Permission: {}, Resource: {}, Operation: {}",
                    ex.getMessage(), ex.getPermissionName(), ex.getResource(), ex.getOperation());
         
         ErrorResponse error = new ErrorResponse(

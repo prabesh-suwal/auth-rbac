@@ -5,11 +5,13 @@ import com.sb.authenticationrbac.role.dto.RoleDefinition;
 import com.sb.authenticationrbac.role.dto.RoleConfiguration;
 import com.sb.authenticationrbac.validator.AbstractValidator;
 import com.sb.authenticationrbac.repositories.PermissionRepository;
+//import com.sb.authenticationrbac.validator.unique.UniqueValidator;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.regex.Pattern;
 
+//@UniqueValidator
 @Component
 public class CreateRoleValidator extends AbstractValidator<RoleDefinition> {
     private static final String NAME_PATTERN = "^[A-Z][A-Z0-9_]*$";

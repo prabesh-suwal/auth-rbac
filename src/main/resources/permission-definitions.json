@@ -1,6 +1,6 @@
 {
-  "api_groups": {
-    "user_management": {
+  "apiGroups": {
+    "userManagement": {
       "description": "User Management APIs",
       "permissions": [
         {
@@ -13,10 +13,10 @@
           },
           "description": "Unrestricted access for super administrators",
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "ALL_BRANCHES"
             },
-            "amount_limit": {
+            "amountLimit": {
               "enabled": false
             },
             "conditions": [
@@ -35,34 +35,34 @@
             "method": "POST"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "SPECIFIC_BRANCHES",
-              "branch_field_path": "branch.id",
-              "include_sub_branches": true,
-              "allowed_branches": ["HO", "RO"]
+              "branchFieldPath": "branch.id",
+              "includeSubBranches": true,
+              "allowedBranches": ["HO", "RO"]
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
             },
-            "validation_rules": [
+            "validationRules": [
               {
-                "name": "valid_email",
+                "name": "validEmail",
                 "condition": "#resource.email != null && #resource.email.matches('^[A-Za-z0-9+_.-]+@(.+)$')",
-                "error_message": "Invalid email format",
+                "errorMessage": "Invalid email format",
                 "priority": 1
               },
               {
-                "name": "valid_role",
+                "name": "validRole",
                 "condition": "#resource.roles != null && !#resource.roles.isEmpty()",
-                "error_message": "User must have at least one role",
+                "errorMessage": "User must have at least one role",
                 "priority": 2
               }
             ]
@@ -77,10 +77,10 @@
             "endpoint": "/api/users/{id}",
             "method": "GET"
           },
-          "access_control": {
-            "required_role": "USER_ADMIN",
-            "branch_access": "OWN_BRANCH",
-            "time_window": "24x7"
+          "accessControl": {
+            "requiredRole": "USER_ADMIN",
+            "branchAccess": "OWN_BRANCH",
+            "timeWindow": "24x7"
           }
         },
         {
@@ -93,25 +93,25 @@
             "method": "PUT"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "OWN_BRANCH",
-              "branch_field_path": "branch.id",
-              "include_sub_branches": false
+              "branchFieldPath": "branch.id",
+              "includeSubBranches": false
             },
-            "resource_access": {
-              "access_type": "CONDITIONAL",
-              "access_conditions": [
+            "resourceAccess": {
+              "accessType": "CONDITIONAL",
+              "accessConditions": [
                 "#user.roles.?[name=='USER_ADMIN'].size() > 0 or #resource.id != 'admin'",
                 "#user.branch.id == #resource.branch.id or #user.roles.?[name=='SUPER_ADMIN'].size() > 0"
               ]
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
@@ -127,15 +127,15 @@
             "endpoint": "/api/users/{id}",
             "method": "DELETE"
           },
-          "access_control": {
-            "required_role": "USER_ADMIN",
-            "branch_access": "OWN_BRANCH",
-            "time_window": "09:00-17:00"
+          "accessControl": {
+            "requiredRole": "USER_ADMIN",
+            "branchAccess": "OWN_BRANCH",
+            "timeWindow": "09:00-17:00"
           }
         }
       ]
     },
-    "role_management": {
+    "roleManagement": {
       "description": "Role Management APIs",
       "permissions": [
         {
@@ -147,10 +147,10 @@
             "endpoint": "/api/roles",
             "method": "POST"
           },
-          "access_control": {
-            "required_role": "SUPER_ADMIN",
-            "branch_access": "ALL_BRANCHES",
-            "time_window": "24x7"
+          "accessControl": {
+            "requiredRole": "SUPER_ADMIN",
+            "branchAccess": "ALL_BRANCHES",
+            "timeWindow": "24x7"
           }
         },
         {
@@ -162,10 +162,10 @@
             "endpoint": "/api/roles/{id}",
             "method": "GET"
           },
-          "access_control": {
-            "required_role": "USER_ADMIN",
-            "branch_access": "ALL_BRANCHES",
-            "time_window": "24x7"
+          "accessControl": {
+            "requiredRole": "USER_ADMIN",
+            "branchAccess": "ALL_BRANCHES",
+            "timeWindow": "24x7"
           }
         },
         {
@@ -177,10 +177,10 @@
             "endpoint": "/api/roles/{id}",
             "method": "PUT"
           },
-          "access_control": {
-            "required_role": "SUPER_ADMIN",
-            "branch_access": "ALL_BRANCHES",
-            "time_window": "09:00-17:00"
+          "accessControl": {
+            "requiredRole": "SUPER_ADMIN",
+            "branchAccess": "ALL_BRANCHES",
+            "timeWindow": "09:00-17:00"
           }
         },
         {
@@ -192,15 +192,15 @@
             "endpoint": "/api/roles/{id}",
             "method": "DELETE"
           },
-          "access_control": {
-            "required_role": "SUPER_ADMIN",
-            "branch_access": "ALL_BRANCHES",
-            "time_window": "09:00-17:00"
+          "accessControl": {
+            "requiredRole": "SUPER_ADMIN",
+            "branchAccess": "ALL_BRANCHES",
+            "timeWindow": "09:00-17:00"
           }
         }
       ]
     },
-    "loan_management": {
+    "loanManagement": {
       "description": "Loan Management APIs",
       "permissions": [
         {
@@ -213,38 +213,38 @@
             "method": "POST"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "OWN_BRANCH",
-              "branch_field_path": "branch.id",
-              "include_sub_branches": false
+              "branchFieldPath": "branch.id",
+              "includeSubBranches": false
             },
-            "amount_limit": {
+            "amountLimit": {
               "enabled": true,
-              "limit_type": "ROLE_BASED",
-              "default_limit": 1000000.0,
-              "amount_field_path": "amount",
-              "role_limits": {
+              "limitType": "ROLE_BASED",
+              "defaultLimit": 1000000.0,
+              "amountFieldPath": "amount",
+              "roleLimits": {
                 "LOAN_OFFICER": 1000000.0,
                 "SENIOR_OFFICER": 2000000.0,
                 "MANAGER": 5000000.0
               }
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
             },
-            "validation_rules": [
+            "validationRules": [
               {
-                "name": "customer_credit_score",
+                "name": "customerCreditScore",
                 "condition": "#resource.customer.creditScore >= 600",
-                "error_message": "Customer credit score must be at least 600",
+                "errorMessage": "Customer credit score must be at least 600",
                 "priority": 1
               }
             ]
@@ -259,10 +259,10 @@
             "endpoint": "/api/loans/{id}",
             "method": "GET"
           },
-          "access_control": {
-            "required_role": "LOAN_OFFICER",
-            "branch_access": "OWN_BRANCH",
-            "time_window": "24x7"
+          "accessControl": {
+            "requiredRole": "LOAN_OFFICER",
+            "branchAccess": "OWN_BRANCH",
+            "timeWindow": "24x7"
           }
         },
         {
@@ -274,11 +274,11 @@
             "endpoint": "/api/loans/{id}",
             "method": "PUT"
           },
-          "access_control": {
-            "required_role": "LOAN_OFFICER",
-            "branch_access": "OWN_BRANCH",
-            "time_window": "09:00-17:00",
-            "validation_rules": [
+          "accessControl": {
+            "requiredRole": "LOAN_OFFICER",
+            "branchAccess": "OWN_BRANCH",
+            "timeWindow": "09:00-17:00",
+            "validationRules": [
               "loan.status != 'APPROVED'",
               "loan.status != 'REJECTED'"
             ]
@@ -294,38 +294,38 @@
             "method": "POST"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "OWN_BRANCH",
-              "branch_field_path": "branch.id",
-              "include_sub_branches": false,
-              "allowed_branches": null
+              "branchFieldPath": "branch.id",
+              "includeSubBranches": false,
+              "allowedBranches": null
             },
-            "amount_limit": {
+            "amountLimit": {
               "enabled": true,
-              "limit_type": "ROLE_BASED",
-              "default_limit": 100000.0,
-              "amount_field_path": "amount",
-              "role_limits": {
+              "limitType": "ROLE_BASED",
+              "defaultLimit": 100000.0,
+              "amountFieldPath": "amount",
+              "roleLimits": {
                 "LOAN_OFFICER": 100000.0,
                 "SENIOR_OFFICER": 500000.0,
                 "MANAGER": 1000000.0,
                 "SENIOR_MANAGER": 5000000.0
               }
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
             },
-            "resource_access": {
-              "access_type": "CONDITIONAL",
-              "access_conditions": [
+            "resourceAccess": {
+              "accessType": "CONDITIONAL",
+              "accessConditions": [
                 "#resource.status == 'PENDING'",
                 "#resource.amount > 0",
                 "#resource.applicant != null"
@@ -335,23 +335,23 @@
               "#user.branch.id == #resource.branch.id",
               "#resource.riskScore <= 70 or #user.roles.?[name=='SENIOR_MANAGER'].size() > 0"
             ],
-            "validation_rules": [
+            "validationRules": [
               {
-                "name": "positive_amount",
+                "name": "positiveAmount",
                 "condition": "#resource.amount > 0",
-                "error_message": "Loan amount must be positive",
+                "errorMessage": "Loan amount must be positive",
                 "priority": 1
               },
               {
-                "name": "valid_status",
+                "name": "validStatus",
                 "condition": "#resource.status == 'PENDING'",
-                "error_message": "Only pending loans can be approved",
+                "errorMessage": "Only pending loans can be approved",
                 "priority": 2
               },
               {
-                "name": "risk_assessment",
+                "name": "riskAssessment",
                 "condition": "#resource.riskScore <= 80 or #context.override == true",
-                "error_message": "High risk loans require override approval",
+                "errorMessage": "High risk loans require override approval",
                 "priority": 3
               }
             ]
@@ -366,18 +366,18 @@
             "endpoint": "/api/loans/{id}/reject",
             "method": "POST"
           },
-          "access_control": {
-            "required_role": "LOAN_MANAGER",
-            "branch_access": "OWN_BRANCH",
-            "time_window": "09:00-17:00",
-            "validation_rules": [
+          "accessControl": {
+            "requiredRole": "LOAN_MANAGER",
+            "branchAccess": "OWN_BRANCH",
+            "timeWindow": "09:00-17:00",
+            "validationRules": [
               "loan.status == 'PENDING'"
             ]
           }
         }
       ]
     },
-    "branch_management": {
+    "branchManagement": {
       "description": "Branch Management APIs",
       "permissions": [
         {
@@ -390,32 +390,32 @@
             "method": "POST"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "ALL_BRANCHES",
-              "include_sub_branches": true
+              "includeSubBranches": true
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
             },
-            "validation_rules": [
+            "validationRules": [
               {
-                "name": "unique_branch_code",
+                "name": "uniqueBranchCode",
                 "condition": "@branchRepository.findByCode(#resource.code) == null",
-                "error_message": "Branch code must be unique",
+                "errorMessage": "Branch code must be unique",
                 "priority": 1
               },
               {
-                "name": "valid_parent_branch",
+                "name": "validParentBranch",
                 "condition": "#resource.parentBranchId == null or @branchRepository.findById(#resource.parentBranchId).isPresent()",
-                "error_message": "Parent branch must exist",
+                "errorMessage": "Parent branch must exist",
                 "priority": 2
               }
             ]
@@ -431,25 +431,25 @@
             "method": "PUT"
           },
           "config": {
-            "branch_access": {
+            "branchAccess": {
               "type": "BRANCH_HIERARCHY",
-              "branch_field_path": "id",
-              "include_sub_branches": true
+              "branchFieldPath": "id",
+              "includeSubBranches": true
             },
-            "resource_access": {
-              "access_type": "CONDITIONAL",
-              "access_conditions": [
+            "resourceAccess": {
+              "accessType": "CONDITIONAL",
+              "accessConditions": [
                 "#user.roles.?[name=='BRANCH_ADMIN'].size() > 0",
                 "!#resource.isHeadOffice or #user.roles.?[name=='SUPER_ADMIN'].size() > 0"
               ]
             },
-            "time_access": {
+            "timeAccess": {
               "enabled": true,
-              "allowed_days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-              "allowed_time_windows": [
+              "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+              "allowedTimeWindows": [
                 {
-                  "start_time": "09:00",
-                  "end_time": "17:00"
+                  "startTime": "09:00",
+                  "endTime": "17:00"
                 }
               ],
               "timezone": "Asia/Kathmandu"
@@ -458,7 +458,7 @@
         }
       ]
     },
-    "technical_operations": {
+    "technicalOperations": {
       "description": "Permissions for technical and system operations",
       "permissions": [
         {
@@ -468,8 +468,8 @@
           "description": "Permission to monitor system health and performance.",
           "api": { "endpoint": "/api/system/monitoring", "method": "GET" },
           "config": {
-            "branch_access": { "type": "ALL_BRANCHES" },
-            "time_access": { "enabled": false }
+            "branchAccess": { "type": "ALL_BRANCHES" },
+            "timeAccess": { "enabled": false }
           },
           "active": true
         },
@@ -480,8 +480,8 @@
           "description": "Permission to assist with user account issues (e.g., password resets, troubleshooting).",
           "api": { "endpoint": "/api/users/{id}/assist", "method": "POST" },
           "config": {
-            "branch_access": { "type": "ALL_BRANCHES" },
-            "time_access": { "enabled": false }
+            "branchAccess": { "type": "ALL_BRANCHES" },
+            "timeAccess": { "enabled": false }
           },
           "active": true
         },
@@ -492,11 +492,11 @@
           "description": "Permission to perform database maintenance tasks.",
           "api": { "endpoint": "/api/system/db/maintenance", "method": "POST" },
           "config": {
-            "branch_access": { "type": "ALL_BRANCHES" },
-            "time_access": { 
+            "branchAccess": { "type": "ALL_BRANCHES" },
+            "timeAccess": { 
               "enabled": true,
-              "allowed_days": ["SATURDAY"],
-              "allowed_time_windows": [{"start_time": "00:00", "end_time": "23:59"}],
+              "allowedDays": ["SATURDAY"],
+              "allowedTimeWindows": [{"startTime": "00:00", "endTime": "23:59"}],
               "timezone": "Asia/Kathmandu"
             }
           },
@@ -509,11 +509,11 @@
           "description": "Permission to update system configurations.",
           "api": { "endpoint": "/api/system/config", "method": "PUT" },
           "config": {
-            "branch_access": { "type": "ALL_BRANCHES" },
-            "time_access": {
+            "branchAccess": { "type": "ALL_BRANCHES" },
+            "timeAccess": {
                "enabled": true,
-               "allowed_days": ["SATURDAY"],
-               "allowed_time_windows": [{"start_time": "00:00", "end_time": "23:59"}],
+               "allowedDays": ["SATURDAY"],
+               "allowedTimeWindows": [{"startTime": "00:00", "endTime": "23:59"}],
               "timezone": "Asia/Kathmandu"
             }
           },

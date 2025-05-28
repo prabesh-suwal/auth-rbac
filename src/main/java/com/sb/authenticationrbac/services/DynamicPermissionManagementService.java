@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -316,7 +317,7 @@ public class DynamicPermissionManagementService {
         
         for (Role role : userRoles) {
             if (role.getPermissions() != null) {
-                permissionIds.addAll(role.getPermissions());
+                permissionIds.addAll(role.getPermissions().stream().map(Permission::getId).collect(Collectors.toSet()));
             }
         }
         

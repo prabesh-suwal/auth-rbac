@@ -1,9 +1,10 @@
 package com.sb.authenticationrbac.entities;
 
+// Remove the DTO import and use the entity from the same package
+// import com.sb.authenticationrbac.dtos.requests.UserPermissionConfig;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,13 +18,8 @@ public class User {
     private String password;
     private String branchId;
     private List<String> roleIds;
-    
-    // User-specific permission overrides
     private UserPermissionConfig permissionConfig;
-    
+    private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private boolean active = true;
-    
-    // constructors, getters, setters
 }

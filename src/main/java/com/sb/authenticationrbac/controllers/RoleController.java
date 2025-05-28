@@ -21,9 +21,9 @@ public class RoleController {
         this.roleService = roleService;
     }
 
-    @PostMapping("/roles")
+    @PostMapping
     @CheckPermission(
-            value = "ROLE_MANAGE",
+            value = "ROLE_CREATE",
             operation = "CREATE"
     )
     public ResponseEntity<Role> createRole(@RequestBody RoleDefinition request) {
